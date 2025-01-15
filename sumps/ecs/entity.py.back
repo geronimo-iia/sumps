@@ -1,0 +1,169 @@
+from __future__ import annotations
+
+from inspect import signature
+from itertools import count as _count
+from typing import Any, Callable, Dict, Iterable, Literal, Mapping, Optional, Tuple, Type, TypeVar, Union
+
+from msgspec import UNSET, Struct, UnsetType, defstruct, field
+
+from sumps.lang.stringcase import pascal_case, snake_case
+from sumps.lang.types import get_builtin_type_names
+
+from .protocol import Component, EntityId
+
+_entity_count: _count[int] = _count(start=1)
+from sumps.io.serialization import Serializer
+
+entity = next(_entity_count)
+
+# {context_name: (entity_count, components, entities, dead_entities,
+#                 comp_cache, comps_cache, processors, process_times, event_registry)}
+
+
+class Context(Struct):
+
+    entity_count: _count[EntityId] = _count(start=1)
+    components: dict[Type[Component], set[EntityId]] = field(default_factory=dict)
+    entities: dict[EntityId, dict[Type[Component], Component]] = field(default_factory=dict)
+
+
+class OptimalContext(Struct):
+    components: dict[Type[Component], set[EntityId]] = field(default_factory=dict)
+    entities: dict[EntityId, Component] = field(default_factory=dict)
+
+
+import msgspec
+
+C = TypeVar('C', bound=Component)
+
+
+class Archetype(Struct):
+    """
+    Attributes:
+        name (str) : The name of the new Struct class.
+        module (str, optional) : The module name to use for the new class. If not provided, will be inferred from the caller's stack frame.
+        fields (iterable) : An iterable of fields in the new class. Elements may be either name, tuples of (name, type), (name, type, default), or (name, type, msgspec.field). Fields without a specified type will default to typing.Any.
+
+    """
+
+    name: str
+    properties: dict[str, Property] = field(default_factory=dict)
+
+    module: str | None = None
+    kw_only: bool = False
+    tag: Union[None, bool, str, int, Callable[[str], Union[str, int]]] = None
+    tag_field: Union[None, str] = None
+    array_like: bool = False
+    gc: bool = True
+    weakref: bool = False
+    dict: bool = False
+    cache_hash: bool = False
+
+    def add_component(
+        self,
+        clzz: Type[Struct],
+        name: str | None = None,
+        optional: bool = False,
+        default: Any = UNSET,
+        default_factory: Callable | None = None,
+    ):
+        _name = name if name else snake_case(clzz.__name__)
+
+        if _name in self.properties:
+            raise RecursionError(f"Component name {_name} ever exists")
+
+        if default == UNSET and not default_factory:
+            if not optional:
+                raise RuntimeError("Must specify default or default_factory at least")
+            default = None
+
+        if default != UNSET:
+
+            if default_factory:
+                raise RuntimeError("Cant specify default and default_factory")
+
+            if default and not isinstance(default, clzz):  # TODO test with buildins
+                raise RuntimeError(f"default value is not an instance of {clzz}")
+
+            if default is None and not optional:
+                # raise RuntimeError("default value is None, you must set optional to True")
+                optional = True
+
+        property = Property(name=_name, clzz=clzz, optional=optional, default=default, default_factory=default_factory)
+        self.properties[property.name] = property
+
+    def build(self) -> Type[Struct]:
+        return defstruct(
+            name=self.name,
+            fields=[p.to_field() for p in self.properties.values()],
+            module=self.module,
+            kw_only=self.kw_only,
+            tag=self.tag,
+            tag_field=self.tag_field,
+            array_like=self.array_like,
+            gc=self.gc,
+            weakref=self.weakref,
+            dict=self.dict,
+            cache_hash=self.cache_hash,
+        )
+
+    def translate(self) -> str:
+        modules = []
+        prelude = []
+        builtin_type_names = get_builtin_type_names()
+
+        header = f"class {pascal_case(self.name)}(Struct, kw_only={self.kw_only}, array_like={self.array_like}, gc={self.gc}, weakref={self.weakref}, dict={self.dict}, cache_hash={self.cache_hash}):\n"
+
+        body = ""
+        for p in self.properties.values():
+            _type = p.clzz.__name__ if not p.optional else f"{p.clzz.__name__} | None"
+
+            if p.default is None:
+                _field = f"{pascal_case(p.default)}"
+            elif isinstance(p.default, Struct):
+                if "sumps.serialization" not in modules:
+                    modules.append("sumps.serialization")
+                    prelude.append("fromsumps.serialization import Serializer as _Serializer")
+
+                bytes = Serializer(format="msgpack").encode(p.default)
+                _field = f"field(default_factory = lambda : _Serializer(format=\"msgpack\").decode(data={bytes}, data_type={p.clzz.__name__ }))"
+            elif p.default != UNSET:
+                _field = f"field(default = {p.default})"
+            else:
+                # see compose to get function import
+                assert p.default_factory
+                _qualified_name = signature(p.default_factory).__qualname__
+                if _qualified_name in builtin_type_names:
+                    _field = f"field(default_factory = {_qualified_name})"
+                else:
+                    index = _qualified_name.rfind('.')
+                    module = _qualified_name[0:index]
+                    default_factory_name = _qualified_name[index + 1 :]
+                    if module not in modules:  # dont import twice
+                        modules.append(module)
+                        prelude.append(f"from {module} import { default_factory_name}\n")
+
+                    _field = f"field(default_factory = {default_factory_name})"
+
+            body += f"""\t{self.name}: {_type} = {_field}"""
+
+        return header + body
+
+
+class Property(Struct):
+    name: str
+    clzz: Type[Struct]
+    optional: bool = False
+    default: None | UnsetType | Struct | bool | int | float | str = UNSET
+    default_factory: Callable | None = None
+
+    def to_field(self) -> Tuple[str, type, Any]:
+        _type = self.clzz
+        if self.optional:
+            self.kw_only = True
+            _type = Union[self.clzz | None]
+        if self.default is not UNSET:
+            return (self.name, _type, field(default=self.default))
+
+        assert self.default_factory
+        return (self.name, _type, field(default_factory=self.default_factory))

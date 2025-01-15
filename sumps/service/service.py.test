@@ -1,0 +1,97 @@
+"""
+Define service.
+
+State machine is implemented using https://github.com/pytransitions/transitions.
+
+"""
+
+from typing import Literal, Protocol, TypeVar, cast, runtime_checkable
+
+from transitions import Machine
+
+type ServiceStateType = Literal[
+    "stopped", "running", "paused", "start_pending", "pause_pending", "continue_pending", "stop_pending"
+]
+
+INITIAL_STATE: ServiceStateType = "stopped"
+
+
+@runtime_checkable
+class ServiceLifeCycle(Protocol):
+    def start(self): ...
+    def stop(self): ...
+
+    def status(self) -> ServiceStateType: ...
+
+
+@runtime_checkable
+class Pausable(Protocol):
+    def pause(self): ...
+    def resume(self): ...
+
+
+@runtime_checkable
+class Haltable(Protocol):
+    def halt(self): ...
+
+
+T = TypeVar("T", bound=ServiceLifeCycle)
+
+
+class ServiceWrapper(ServiceLifeCycle):
+    def __init__(self, model):
+        self._model = model
+
+    def _start(self):
+        return self._model.start()
+
+    def _stop(self):
+        return self._model.stop()
+
+
+def service(model: T) -> T:
+    states = ["stopped", "running", "paused"]
+
+    wrapper = ServiceWrapper(model=model)
+    machine = Machine(model=wrapper, states=states, initial="stopped", ignore_invalid_triggers=True)
+
+    machine.add_transition(
+        "start",
+        source="stopped",
+        dest="running",
+        before=model.start,
+    )
+    machine.add_transition("stop", source="running", dest="stopped", before=model.stop)
+
+    if isinstance(model, Pausable):
+        machine.add_transition("pause", source="running", dest="paused", before=model.pause)
+        machine.add_transition("stop", source="paused", dest="stopped", before=model.stop)
+        machine.add_transition("resume", source="paused", dest="running", before=model.resume)
+
+    if isinstance(model, Haltable):
+        machine.add_transition("halt", source="*", dest="stopped", before=model.halt)
+
+    return cast(T, wrapper)
+
+
+def service_with_pending(model):
+    states = ["stopped", "running", "paused", "start_pending", "pause_pending", "continue_pending", "stop_pending"]
+
+    machine = Machine(model=model, states=states, initial="stopped", ignore_invalid_triggers=True)
+
+    machine.add_transition("start", source="stopped", dest="start_pending")
+    machine.add_transition("stop", source="running", dest="stop_pending")
+    machine.add_transition("pause", source="running", dest="pause_pending")
+    machine.add_transition("stop", source="paused", dest="stop_pending")
+    machine.add_transition("resume", source="paused", dest="continue_pending")
+
+    machine.add_transition("started", source="start_pending", dest="running")
+    machine.add_transition("stopped", source="stop_pending", dest="stopped")
+    machine.add_transition("paused", source="pause_pending", dest="paused")
+    machine.add_transition("resumed", source="continue_pending", dest="running")
+
+    machine.add_transition("stop", source="start_pending", dest="stop_pending")
+    machine.add_transition("stop", source="pause_pending", dest="stop_pending")
+    machine.add_transition("stop", source="continue_pending", dest="stop_pending")
+
+    machine.add_transition("halt", source="*", dest="stopped")
