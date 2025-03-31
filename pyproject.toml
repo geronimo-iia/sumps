@@ -40,9 +40,9 @@ repository = "https://github.com/geronimo-iia/sumps"
 [project.optional-dependencies]
 serializer = [
     "networkx ~= 3.4.2",
-    "pydantic ~=2.10.5",
+    "pydantic ~=2.11.1",
     "orjson ~= 3.10.14",
-    "protobuf ~=5.29.3",
+    "protobuf ~=6.30.2",
     "brotlipy ~= 0.7.0"
 ]
 
