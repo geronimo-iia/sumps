@@ -2,7 +2,7 @@
 #    uv pip compile pyproject.toml -o requirements.txt
 curio @ git+https://github.com/dabeaz/curio.git@148454621f9bd8dd843f591e87715415431f6979
     # via sumps (pyproject.toml)
-dill==0.3.9
+dill==0.4.0
     # via sumps (pyproject.toml)
 gitdb==4.0.12
     # via gitpython

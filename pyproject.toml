@@ -25,7 +25,7 @@ requires-python = ">=3.12,<4"
 dependencies = [
     "curio",
     "msgspec ~= 0.19.0",
-    "dill ~= 0.3.9",
+    "dill ~= 0.4.0",
     "gitpython ~= 3.1.43",
     "transitions ~= 0.9.2"
 ]
@@ -40,9 +40,9 @@ repository = "https://github.com/geronimo-iia/sumps"
 [project.optional-dependencies]
 serializer = [
     "networkx ~= 3.4.2",
-    "pydantic ~=2.10.5",
+    "pydantic ~=2.11.3",
     "orjson ~= 3.10.14",
-    "protobuf ~=5.29.3",
+    "protobuf ~=6.30.2",
     "brotlipy ~= 0.7.0"
 ]
 
