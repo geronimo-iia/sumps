@@ -1,6 +1,7 @@
 import pytest
 
-from sumps.lang.symbols import Empty, SymbolReference, SymbolTable
+from sumps.lang.symbols.base import Empty
+from sumps.lang.symbols.reference import SymbolReference, SymbolTable
 
 
 class TestSymbolReference:
@@ -48,10 +49,11 @@ class TestSymbolTable:
         class FakeSymbol:
             kind = "function"
             name = "fake"
+            qualified_name = "fake"
 
         fake = FakeSymbol()
         with pytest.raises(ValueError, match="Expected an import, got a function"):
-            table.add(fake)  # type: ignore
+            table.add(fake)
 
     def test_add_reference_creates_and_adds(self):
         table = SymbolTable()
@@ -60,3 +62,26 @@ class TestSymbolTable:
         assert ref.name == "sys"
         assert ref.alias == "system"
         assert ref in table
+
+    def test_add_class(self):
+        table = SymbolTable()
+        
+        class TestClass:
+            __module__ = "test_module"
+            __qualname__ = "TestClass"
+        
+        ref = table.add_class(TestClass)
+        assert isinstance(ref, SymbolReference)
+        assert ref.qualified_name == "test_module.TestClass"
+
+    def test_add_function(self):
+        table = SymbolTable()
+        
+        def test_func():
+            pass
+        
+        test_func.__module__ = "test_module"
+        test_func.__qualname__ = "test_func"
+        
+        ref = table.add_function(test_func)
+        assert isinstance(ref, SymbolReference)

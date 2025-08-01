@@ -2,7 +2,8 @@ from inspect import Parameter
 
 import pytest
 
-from sumps.lang.symbols import Empty, ParameterSymbol, _parameter_kind_to_literal, _parameter_literal_to_kind
+from sumps.lang.symbols.base import Empty
+from sumps.lang.symbols.parameter import ParameterSymbol, Parameters, _parameter_kind_to_literal, _parameter_literal_to_kind
 
 
 class TestParameterSymbol:
@@ -122,3 +123,78 @@ class TestParameterKindConversion:
 
         with pytest.raises(ValueError):
             _parameter_kind_to_literal(FakeKind())
+
+
+class TestParameters:
+    def test_init_empty(self):
+        params = Parameters()
+        assert len(params) == 0
+        assert list(params) == []
+
+    def test_init_with_symbols(self):
+        params = Parameters()
+        params.add(ParameterSymbol(name="a"))
+        params.add(ParameterSymbol(name="b"))
+        assert len(params) == 2
+        assert params["a"].name == "a"
+        assert params["b"].name == "b"
+
+    def test_add_accepts_only_parameter_symbol(self):
+        params = Parameters()
+        p = ParameterSymbol("param1")
+        params.add(p)
+
+        class DummySymbol:
+            kind = "not-a-parameter"
+            name = "dummy"
+            qualified_name = "dummy"
+
+        dummy = DummySymbol()
+        with pytest.raises(ValueError):
+            params.add(dummy)
+
+    def test_add_parameter_creates_and_adds(self):
+        params = Parameters()
+        p = params.add_parameter("foo", parameter_kind="VAR_POSITIONAL", annotation=int, default=42)
+        assert isinstance(p, ParameterSymbol)
+        assert p.name == "foo"
+        assert p.parameter_kind == "VAR_POSITIONAL"
+        assert p.annotation is int
+        assert p.default == Empty
+        assert params.has("foo")
+        assert params.get("foo") == p
+
+    def test_len_iter_getitem_contains(self):
+        params = Parameters()
+        params.add(ParameterSymbol(name="x"))
+        params.add(ParameterSymbol(name="y"))
+
+        assert len(params) == 2
+        names = [p.name for p in params]
+        assert names == ["x", "y"]
+        assert params["x"].name == "x"
+        assert params["y"].name == "y"
+        assert ("x" in params) is True
+        assert ("z" in params) is False
+
+    def test_remove_get_has_all_clear(self):
+        params = Parameters()
+        p1 = ParameterSymbol("a")
+        p2 = ParameterSymbol("b")
+        params.add(p1)
+        params.add(p2)
+
+        assert params.has("a")
+        assert params.has("b")
+
+        params.remove("a")
+        assert not params.has("a")
+        assert params.has("b")
+
+        all_syms = params.all()
+        assert len(all_syms) == 1
+        assert all_syms[0].name == "b"
+
+        params.clear()
+        assert len(params) == 0
+        assert list(params) == []

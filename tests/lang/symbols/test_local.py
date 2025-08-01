@@ -1,6 +1,6 @@
 import pytest
 
-from sumps.lang.symbols import LocalSymbol, _classify_object
+from sumps.lang.symbols.local import LocalSymbol, LocalSymbolTable, _classify_object
 
 
 class TestClassifyObject:
@@ -42,7 +42,7 @@ class TestLocalSymbol:
         assert symbol.reference == 42
         
     def test_constructor_full(self):
-        symbol = LocalSymbol("x", 42, annotation= "int")
+        symbol = LocalSymbol("x", 42, annotation="int")
         assert symbol.name == "x"
         assert symbol.annotation == "int"
         assert symbol.reference == 42
@@ -76,3 +76,35 @@ class TestLocalSymbol:
         expected = "LocalSymbol(name='x', kind='variable', annotation=1, scope=None, weak_ref=False, reference='int')"
         assert repr(symbol) == expected
 
+
+class TestLocalSymbolTable:
+    def test_add_class(self):
+        table = LocalSymbolTable()
+        
+        class TestClass:
+            pass
+        
+        symbol = table.add_class(TestClass)
+        assert symbol.name == "TestClass"
+        assert symbol.kind == "class"
+
+    def test_add_function(self):
+        table = LocalSymbolTable()
+        
+        def test_func():
+            pass
+        
+        symbol = table.add_function(test_func)
+        assert symbol.name == "test_func"
+        assert symbol.kind == "function"
+
+    def test_add_variable(self):
+        table = LocalSymbolTable()
+        
+        class TestObj:
+            pass
+        
+        obj = TestObj()
+        symbol = table.add_variable("test_var", obj)
+        assert symbol.name == "test_var"
+        assert symbol.kind == "variable"

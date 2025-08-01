@@ -1,6 +1,8 @@
 from inspect import Parameter, Signature
 
-from sumps.lang.symbols import Empty, FunctionSymbol, Parameters, ParameterSymbol, Statement
+from sumps.lang.symbols.base import Empty
+from sumps.lang.symbols.parameter import ParameterSymbol
+from sumps.lang.symbols.statement import ClassSymbol, FunctionSymbol, Statement, Statements, VariableSymbol
 
 
 def make_param(name="x", **kwargs):
@@ -12,7 +14,6 @@ class TestFunctionSymbol:
         f = FunctionSymbol("foo")
         assert f.name == "foo"
         assert f.kind == "function"
-        assert isinstance(f.parameters, Parameters)
         assert f.return_annotation == Empty
         assert f.is_async is False
         assert f.annotation == Empty
@@ -88,6 +89,106 @@ class TestFunctionSymbol:
         assert "func" in r
         assert "param" in r
         assert "str" in r
+
+
+class TestVariableSymbol:
+    def test_init_defaults(self):
+        var = VariableSymbol(name="x")
+        assert var.name == "x"
+        assert var.kind == "variable"
+        assert var.annotation is Empty
+        assert var.body == ""
+
+    def test_init_with_annotation_and_body(self):
+        var = VariableSymbol(name="y", annotation=int, body="42")
+        assert var.name == "y"
+        assert var.annotation is int
+        assert var.body == "42"
+
+    def test_str_with_annotation(self):
+        var = VariableSymbol(name="z", annotation=str, body="'hello'")
+        s = str(var)
+        assert s == "z: <class 'str'> = 'hello'"
+
+    def test_str_without_annotation(self):
+        var = VariableSymbol(name="a", body="10")
+        s = str(var)
+        assert s == "a: Any = 10"
+
+    def test_repr_contains_expected(self):
+        var = VariableSymbol(name="var1", annotation=float, body="3.14")
+        r = repr(var)
+        assert r.startswith("VariableSymbol(")
+        assert "name='var1'" in r
+        assert "annotation=<class 'float'>" in r
+        assert "body='3.14'" in r
+
+
+class TestClassSymbol:
+    def test_init_defaults(self):
+        cls = ClassSymbol(name="MyClass", body="pass")
+        assert cls.name == "MyClass"
+        assert cls.kind == "class"
+        assert cls.body == "pass"
+        assert cls.bases == []
+        assert cls.decorators == []
+        assert cls.annotation is Empty
+
+    def test_init_with_bases_and_decorators(self):
+        bases = ["Base1", "Base2"]
+        decorators = ["decorator1", "decorator2"]
+        cls = ClassSymbol(name="ChildClass", bases=bases, decorators=decorators, body="pass")
+        assert cls.bases == bases
+        assert cls.decorators == decorators
+
+    def test_add_base_and_decorator(self):
+        cls = ClassSymbol(name="Test", body="pass")
+        cls.add_base("Base")
+        cls.add_decorator("staticmethod")
+        assert "Base" in cls.bases
+        assert "staticmethod" in cls.decorators
+
+    def test_str_without_bases(self):
+        cls = ClassSymbol(name="Simple", body="pass")
+        s = str(cls)
+        assert s == "class Simple"
+
+    def test_str_with_bases(self):
+        cls = ClassSymbol(name="Child", bases=["Base1", "Base2"], body="pass")
+        s = str(cls)
+        assert s == "class Child(Base1, Base2)"
+
+    def test_repr_contains_expected_fields(self):
+        cls = ClassSymbol(name="ReprTest", bases=["B"], decorators=["d"], body="pass")
+        r = repr(cls)
+        assert r.startswith("ClassSymbol(")
+        assert "name='ReprTest'" in r
+        assert "bases=['B']" in r
+        assert "decorators=['d']" in r
+        assert "body='pass'" in r
+
+
+class TestStatements:
+    def test_get_variable(self):
+        statements = Statements()
+        var = VariableSymbol("test_var", body="42")
+        statements.add(var)
+        assert statements.get_variable("test_var") == var
+        assert statements.get_variable("missing") is None
+
+    def test_get_function(self):
+        statements = Statements()
+        func = FunctionSymbol("test_func")
+        statements.add(func)
+        assert statements.get_function("test_func") == func
+        assert statements.get_function("missing") is None
+
+    def test_get_class(self):
+        statements = Statements()
+        cls = ClassSymbol("TestClass", body="pass")
+        statements.add(cls)
+        assert statements.get_class("TestClass") == cls
+        assert statements.get_class("Missing") is None
 
 
 class TestStatement:

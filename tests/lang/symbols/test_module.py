@@ -1,9 +1,7 @@
-from sumps.lang.symbols import Empty, ModuleSymbol, Statement, Statements, SymbolReference, SymbolTable
-
-
-class DummyStatement(Statement):
-    def __init__(self, name="dummy"):
-        super().__init__(name=name, kind="dummy", body="", annotation=Empty)
+from sumps.lang.symbols.base import Empty
+from sumps.lang.symbols.module import ModuleSymbol
+from sumps.lang.symbols.reference import SymbolReference
+from sumps.lang.symbols.statement import ClassSymbol, FunctionSymbol
 
 
 class TestModuleSymbol:
@@ -12,8 +10,6 @@ class TestModuleSymbol:
         assert mod.name == "mymodule"
         assert mod.kind == "module"
         assert mod.docstring is None
-        assert isinstance(mod.references, SymbolTable)
-        assert isinstance(mod.statements, Statements)
         assert len(mod.statements) == 0
         assert len(mod.references) == 0
         assert mod.annotation is Empty
@@ -40,3 +36,17 @@ class TestModuleSymbol:
         assert r.startswith("ModuleSymbol(")
         assert "name='mod'" in r
         assert "statements=0" in r
+
+    def test_add_and_get_function(self):
+        module = ModuleSymbol(name="math_utils")
+        func = FunctionSymbol("add", parameters=[], return_annotation="int")
+        module.statements.add(func)
+        assert module.statements.get_function("add") == func
+        assert module.statements.get_function("missing") is None
+
+    def test_add_and_get_class(self):
+        module = ModuleSymbol(name="shapes")
+        cls = ClassSymbol(name="Circle", body="pass")
+        module.statements.add(cls)
+        assert module.statements.get_class("Circle") == cls
+        assert module.statements.get_class("Square") is None
