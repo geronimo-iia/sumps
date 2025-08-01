@@ -8,7 +8,7 @@ import zipfile
 from os.path import basename
 
 
-def entropy(length):
+def entropy(length: int) -> str:
     return "".join(random.choice(string.ascii_lowercase) for i in range(length))
 
 

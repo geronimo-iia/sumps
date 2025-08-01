@@ -1,6 +1,6 @@
 """Langs declare few basic language elements."""
 
-from .option import Nothing, Option, Some, maybe
+from .option import Nothing, Option, Some, just, maybe
 from .singleton import singleton
 from .stringcase import (
     alphanum_case,
@@ -18,19 +18,21 @@ from .stringcase import (
     trim_case,
     upper_case,
 )
-from .types import get_builtin_type_names, qualified_name
+
+# from .symbols.types import get_builtin_type_names, get_type_qualified_name
+from .typing import Intersection
 
 __all__ = [
     # singleton
     "singleton",
     # option
     "maybe",
+    "just",
     "Option",
     "Some",
     "Nothing",
-    # types
-    "get_builtin_type_names",
-    "qualified_name",
+    # typing
+    "Intersection",
     # stringcase
     "camel_case",
     "capital_case",

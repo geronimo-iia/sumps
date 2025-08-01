@@ -1,11 +1,28 @@
 from enum import Enum
 from typing import Protocol, runtime_checkable
 
+__all__ = [
+    "ServiceState",
+    "Statuable",
+    "Startable",
+    "Pausable",
+    "Haltable",
+    "AsyncStartable",
+    "AsyncPausable",
+    "AsyncHaltable",
+    "ServiceEventListener",
+    "AsyncServiceEventListener",
+    "ServiceController",
+    "ServiceAsyncController",
+]
+
 
 class ServiceState(Enum):
+    # named state
     stopped = "stopped"
     running = "running"
     paused = "paused"
+    # named edge
     start_pending = "start_pending"
     pause_pending = "pause_pending"
     resume_pending = "resume_pending"
@@ -15,6 +32,7 @@ class ServiceState(Enum):
 
 @runtime_checkable
 class Statuable(Protocol):
+    @property
     def status(self) -> ServiceState: ...
 
 

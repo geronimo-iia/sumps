@@ -2,32 +2,34 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import AsyncIterator, Iterator
 
 from curio import CancelledError, LifoQueue, PriorityQueue, Queue, UniversalQueue
 from curio.meta import awaitable
 
-__all__ = ["iter", "IterableQueue", "IterableUniversalQueue"]
+__all__ = ["iter", "QueueIterator", "UniversalQueueIterator"]
 
 type SimpleQueue = Queue | PriorityQueue | LifoQueue
 
-
-def iter(queue: SimpleQueue | UniversalQueue) -> Iterable:
+def iter(queue: SimpleQueue | UniversalQueue) -> AsyncIterator:
+    """Returns an AsyncIterator from a curio queue."""
     if isinstance(queue, UniversalQueue):
-        return IterableUniversalQueue(queue=queue)
-    return IterableQueue(queue=queue)
+        return UniversalQueueIterator(queue=queue)
+    return QueueIterator(queue=queue)
 
 
-class IterableQueue(Iterable):
+class QueueIterator(AsyncIterator):
     """Create an Iterable Queue."""
 
     def __init__(self, queue: SimpleQueue) -> None:
         self._halt = False
         self.queue = queue
 
-    def __aiter__(self):
+
+    def __aiter__(self) -> QueueIterator:
         return self
 
+    
     async def __anext__(self):
         if self._halt:
             raise StopAsyncIteration()
@@ -45,17 +47,17 @@ class IterableQueue(Iterable):
         self._halt = True
 
 
-class IterableUniversalQueue(Iterable):
-    """Create an Iterable UniversalQueue."""
+class UniversalQueueIterator(AsyncIterator, Iterator):
+    """Create an Iterator/AsyncIterator from a curio UniversalQueue."""
 
     def __init__(self, queue: UniversalQueue) -> None:
         self._halt = False
         self.queue = queue
 
-    def __aiter__(self) -> IterableUniversalQueue:
+    def __aiter__(self) -> UniversalQueueIterator:
         return self
 
-    def __iter__(self) -> IterableUniversalQueue:
+    def __iter__(self) -> UniversalQueueIterator:
         return self
 
     def __next__(self):
@@ -66,7 +68,7 @@ class IterableUniversalQueue(Iterable):
             item = self.queue.get()
             self.queue.task_done_sync()
             if not item:
-                raise StopAsyncIteration()
+                raise StopIteration()
             return item
 
         except CancelledError as error:

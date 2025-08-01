@@ -46,7 +46,17 @@ def test_signature():
 
 
 def test_compile():
-    fn = Compose(funcs=[double, add]).compile()
+    fn = Compose(funcs=[double, add]).build()
     assert fn(1, 2) == 9
-    fn = Compose(funcs=[double, double]).compile()
+    fn = Compose(funcs=[double, double]).build()
     assert fn(2) == 16
+
+
+def test_compose_with_lambda():
+    fn = compose(lambda x: x * 3, lambda x: x + 1)
+    assert fn(2) == 9  # (2 + 1) * 3 = 9
+
+
+def test_pipe_with_lambda():
+    fn = pipe(lambda x: x + 1, lambda x: x * 3)
+    assert fn(2) == 9  # (2 + 1) * 3 = 9

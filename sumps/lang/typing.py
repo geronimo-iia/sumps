@@ -2,13 +2,23 @@ from __future__ import annotations
 
 from typing import Any
 
-from msgspec import Struct
+from .module_builder import ClassSymbol, ModuleBuilder
 
-from .stringcase import pascal_case, snake_case
-from .symbols import Module, Statement
+__all__ = ["Intersection"]
 
-__all__ = ["Intersection", "Archetype"]
 
+def _deduplicate(params):
+    # Weed out strict duplicates, preserving the first of each occurrence.
+    all_params = set(params)
+    if len(all_params) < len(params):
+        new_params = []
+        for t in params:
+            if t in all_params:
+                new_params.append(t)
+                all_params.remove(t)
+        params = new_params
+        assert not all_params, all_params
+    return params
 
 def Intersection(parameters: list[type[Any]], name: str | None = None) -> type[Any]:
     """Intersection type; Intersection[X, Y] means either X and Y.
@@ -36,65 +46,16 @@ def Intersection(parameters: list[type[Any]], name: str | None = None) -> type[A
         return parameters[0]
 
     parameters = _deduplicate(parameters)
-    m = Module(name="intersection")
-    for p in parameters:
-        m.add_class_reference(p)
+    m = ModuleBuilder(name="intersection")
+    for p in parameters: # use locals instead of reference to support dynmaic classes
+        m.locals.add_class(p)
 
     p_names = [p.__qualname__ for p in parameters]
     name = name if name else "".join(p_names)
-    m.statements.add(item=Statement(name=name, body=f"class {name}({', '.join(p_names)}):\n\tpass\n"))
-    return m.import_module()[name]
+    m.add_statement(stmt=ClassSymbol(name=name, bases=p_names, body="pass\n"))
+    try:
+        return m.build().get_reference(name=name)
+    except RuntimeError as r:
+        raise TypeError(r) from r
 
 
-def Archetype(
-    name: str, attributs: list[type[Any]], parents: list[type[Any]] | None = None, options: dict[str, Any] | None = None
-) -> type[Any]:
-    # TODO add optional attributs, support for type expression and default factory (field)
-    parents = parents if parents else list()
-
-    name = pascal_case(name)
-
-    has_struct = False
-    for p in parents:
-        if issubclass(p, Struct):
-            has_struct = True
-        if p.__module__ == "builtins":
-            raise TypeError("Cannot take a builtins types as parent.")
-    if not has_struct:
-        parents.append(Struct)
-
-    attributs = _deduplicate(attributs)
-
-    m = Module(name="archetype")
-
-    for p in parents:
-        m.add_class_reference(p)
-
-    p_names = [p.__qualname__ for p in parents]
-    if options:
-        for k, v in options.items():
-            p_names.append(f"{k}={str(v)}")
-
-    body = [f"class {name}({', '.join(p_names)}):"]
-
-    for attribut in attributs:
-        m.add_class_reference(attribut)
-        body.append(f"\t{snake_case(attribut.__name__)}:{attribut.__qualname__}")
-
-    m.statements.add(item=Statement(name=name, body="\n".join(body)))
-
-    return m.import_module()[name]
-
-
-def _deduplicate(params):
-    # Weed out strict duplicates, preserving the first of each occurrence.
-    all_params = set(params)
-    if len(all_params) < len(params):
-        new_params = []
-        for t in params:
-            if t in all_params:
-                new_params.append(t)
-                all_params.remove(t)
-        params = new_params
-        assert not all_params, all_params
-    return params

@@ -29,7 +29,7 @@ from contextlib import suppress
 
 from curio import UniversalEvent, spawn
 
-__all__ = ["SignalEvent", "spawn_signals_listener", "SignalHandler", "TERMINATION_SIGNALS"]
+__all__ = ["SignalEvent", "SignalHandler", "TERMINATION_SIGNALS"]
 
 type SignalHandler = Callable[[], Awaitable[None]]
 
@@ -63,6 +63,10 @@ class SignalEvent(UniversalEvent):
 
     def _handler(self, signo, frame):
         self.set()  # type: ignore
+        # call previous handler
+        if signo in self._old :
+            self._old[signo](signo, frame)
+        
 
     def __del__(self):
         # restore original signal handler
@@ -71,26 +75,41 @@ class SignalEvent(UniversalEvent):
                 signo, handler = self._old.popitem()
                 signal.signal(signo, handler)
 
+    async def listen(self, handler: SignalHandler) -> Callable[[], Awaitable]:
 
-async def spawn_signals_listener(handler: SignalHandler, *signos: signal.Signals) -> Callable[[], Awaitable[None]]:
-    """Spawn a signal listener task.
+        async def _wait_for_signals():
+            while True:
+                await self.wait()
+                await handler()
+                self.clear()
+        
+        task = await spawn(_wait_for_signals, daemon=True)
 
-    Returns: an async function to cancel it.
+        async def _clear():
+            await task.cancel()
 
-    """
+        return _clear
 
-    async def _wait_for_signals(sigint_evt: SignalEvent):
-        while True:
-            await sigint_evt.wait()
-            await handler()
-            sigint_evt.clear()
 
-    sigint_evt = SignalEvent(*signos)
-    task = await spawn(_wait_for_signals, sigint_evt, daemon=True)
+# async def spawn_signals_listener(handler: SignalHandler, *signos: signal.Signals) -> Callable[[], Awaitable[None]]:
+#     """Spawn a signal listener task.
 
-    async def _clear():
-        nonlocal sigint_evt, task
-        del sigint_evt
-        await task.cancel()
+#     Returns: an async function to cancel it.
 
-    return _clear
+#     """
+
+#     async def _wait_for_signals(sigint_evt: SignalEvent):
+#         while True:
+#             await sigint_evt.wait()
+#             await handler()
+#             sigint_evt.clear()
+
+#     sigint_evt = SignalEvent(*signos)
+#     task = await spawn(_wait_for_signals, sigint_evt, daemon=True)
+
+#     async def _clear():
+#         nonlocal sigint_evt, task
+#         del sigint_evt
+#         await task.cancel()
+
+#     return _clear

@@ -55,6 +55,9 @@ class EntityHandler(Entity):
         super().__init__(id=id)
         self.manager = manager
 
+    def is_alive(self) -> bool:
+        return self.id not in self.manager._dead_entities
+
     def __getattr__(self, name):
         if self.id in self.manager._dead_entities:
             raise RuntimeError(f"Entity {self.id} is dead.")
@@ -160,9 +163,7 @@ class EntityManager:
         components_dict = self._entities[entity]
         return all(comp_type in components_dict for comp_type in component_types)
 
-    def add_component(
-        self, entity: EntityId, component_instance: Component, type_alias: type[Component] | None = None
-    ) -> None:
+    def add_component(self, entity: EntityId, component_instance: Component, type_alias: type[Component] | None = None) -> None:
         """Add a new Component instance to an Entity.
 
         Add a Component instance to an Entiy. If a Component of the same type
@@ -215,9 +216,7 @@ class EntityManager:
     def get_components(self, c1: type[C1], c2: type[C2]) -> Iterable[tuple[EntityId, tuple[C1, C2]]]: ...
 
     @overload
-    def get_components(
-        self, c1: type[C1], c2: type[C2], c3: type[C3]
-    ) -> Iterable[tuple[EntityId, tuple[C1, C2, C3]]]: ...
+    def get_components(self, c1: type[C1], c2: type[C2], c3: type[C3]) -> Iterable[tuple[EntityId, tuple[C1, C2, C3]]]: ...
 
     @overload
     def get_components(
@@ -255,14 +254,10 @@ class EntityManager:
     def try_components(self, entity: EntityId, c1: type[C1], c2: type[C2]) -> tuple[C1, C2] | None: ...
 
     @overload
-    def try_components(
-        self, entity: EntityId, c1: type[C1], c2: type[C2], c3: type[C3]
-    ) -> tuple[C1, C2, C3] | None: ...
+    def try_components(self, entity: EntityId, c1: type[C1], c2: type[C2], c3: type[C3]) -> tuple[C1, C2, C3] | None: ...
 
     @overload
-    def try_components(
-        self, entity: EntityId, c1: type[C1], c2: type[C2], c3: type[C3], c4: type[C4]
-    ) -> tuple[C1, C2, C3, C4] | None: ...
+    def try_components(self, entity: EntityId, c1: type[C1], c2: type[C2], c3: type[C3], c4: type[C4]) -> tuple[C1, C2, C3, C4] | None: ...
 
     def try_components(self, entity: EntityId, *component_types: type[Component]) -> tuple[Component, ...] | None:  # type: ignore
         """Try to get a multiple component types for an Entity.

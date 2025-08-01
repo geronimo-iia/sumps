@@ -1,8 +1,7 @@
 import pytest
 from msgspec import Struct
-from msgspec.structs import asdict
 
-from sumps.lang.typing import Archetype, Intersection
+from sumps.lang.typing import Intersection
 
 
 class A:
@@ -25,27 +24,36 @@ class Position(Struct):
     y: int = 0
 
 
-def test_intesection():
-    ab_cls = Intersection([A, B])
+class TestIntersection:
+    def test_basic_intersection(self):
+        ab_cls = Intersection([A, B])
+        ab = ab_cls()
 
-    ab = ab_cls()
+        assert ab.i_can_fly
+        assert ab.i_beleive
+        assert ab.i_beleive()
+        assert ab.i_can_fly()
 
-    assert ab.i_can_fly
-    assert ab.i_beleive
+    def test_intersection_overlap(self):
+        with pytest.raises(TypeError):  # TypeError: multiple bases have instance lay-out conflict
+            Intersection([Velocity, Position])
 
-    assert ab.i_beleive()
-    assert ab.i_can_fly()
+    def test_intersection_none_type(self):
+        with pytest.raises(TypeError):
+            Intersection([Velocity, type(None)])
 
+    def test_intersection_builtins_type(self):
+        with pytest.raises(TypeError):
+            Intersection([Velocity, str])
 
-def test_intesection_overlab():
-    with pytest.raises(TypeError):  # TypeError: multiple bases have instance lay-out conflict
-        Intersection([Velocity, Position])
+    def test_intersection_single_type(self):
+        assert Intersection([Velocity]) == Velocity
 
+    def test_intersection_deduplicate(self):
+        abb_cls = Intersection([A, B, B])
+        abb = abb_cls()
 
-def test_archetype():
-    sprite = Archetype(name="sprite", attributs=[Position, Velocity])
-    assert sprite
-    item = sprite(position=Position(x=0, y=1), velocity=Velocity(x=0, y=1))
-
-    assert item
-    assert asdict(item) == {"position": Position(x=0, y=1), "velocity": Velocity(x=0, y=1)}
+        assert abb.i_can_fly
+        assert abb.i_beleive
+        assert abb.i_beleive()
+        assert abb.i_can_fly()

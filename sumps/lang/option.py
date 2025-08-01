@@ -8,6 +8,23 @@ Using an Option type forces you to deal with None values in your code and increa
 
 Nothing as the meaning of python None, msgspec UNSET.
 
+
+
+Purpose: Provide a type-safe way to express optional values, forcing users to handle the "empty" (Nothing) case explicitly.
+
+Variants:
+    Some(value) holds a value that is guaranteed not to be None or Nothing.
+    Nothing() represents no value; it’s a singleton.
+Main class: Option[T] - abstract base with all core logic.
+Factory helpers: maybe(value), just(value) to create Option from values.
+
+Extensive API:
+    unwrap, expect, unwrap_or, unwrap_or_else
+    map, map_or, map_or_else
+    filter, zip, zip_with, unzip, flatten
+    Boolean logic operators: __and__, __or__, __xor__
+    Comparison operators with correct semantics (<, <=, >, >=)
+    get for mapping keys inside an Option[Mapping]
 """
 
 from __future__ import annotations
@@ -17,7 +34,7 @@ from typing import Any, Generic, Protocol, TypeVar
 
 from msgspec import UNSET
 
-__all__ = ["maybe", "Option", "Some", "Nothing"]
+__all__ = ["maybe", "just", "Option", "Some", "Nothing"]
 
 T = TypeVar("T", covariant=True)
 U = TypeVar("U")
@@ -49,7 +66,8 @@ class Option(Generic[T]):
 
     """
 
-    __slots__ = ("_is_some", "_value")
+    __slots__ = ("_is_some", "_value", "_initialized")
+    __match_args__ = "_value"
 
     def __new__(cls, is_some: bool, value: T):
         # only Some and Nothing can be instanciated.
@@ -57,8 +75,19 @@ class Option(Generic[T]):
             instance = super().__new__(cls)
             instance._is_some = is_some
             instance._value = value
+            instance._initialized = True  # Mark as initialized
             return instance
         raise RuntimeError("only Some or Nothing can be instanciated.")
+
+    def __setattr__(self, name, value):
+        if hasattr(self, "_initialized"):
+            # Prevent attribute changes after initialization
+            raise AttributeError(f"{type(self).__name__} is immutable")
+        # Allow setting attributes during __new__ before _initialized is set
+        super().__setattr__(name, value)
+
+    def __delattr__(self, name):
+        raise AttributeError(f"{type(self).__name__} is immutable")
 
     @property
     def is_some(self) -> bool:
@@ -139,7 +168,7 @@ class Option(Generic[T]):
     def zip(self, other: Option[U]) -> Option[tuple[T, U]]:
         """Zips self with another Option.
 
-        If self is Some(s) and other is Some(o), this method returns Some((s, o)). Otherwise, None is returned.
+        If self is Some(s) and other is Some(o), this method returns Some((s, o)). Otherwise, Nothing is returned.
         """
         return self.zip_with(other=other, f=lambda a, b: (a, b)) if self._is_some else Nothing()
 
@@ -147,26 +176,31 @@ class Option(Generic[T]):
         """
         Zips self and another Option with function f.
 
-        If self is Some(s) and other is Some(o), this method returns Some(f(s, o)). Otherwise, None is returned.
+        If self is Some(s) and other is Some(o), this method returns Some(f(s, o)). Otherwise, Nothing is returned.
         """
         if self._is_some and other.is_some:
             return Some(value=f(self._value, other.value))
         return Nothing()
 
     def unzip(self) -> tuple[Option[Any], Option[Any]]:
-        """Unzips an option containing a tuple of two options.
+        """Unzips an Option containing a 2-element tuple into a tuple of two Options.
 
-        If self is Some((a, b)) this method returns (Some(a), Some(b)). Otherwise, (None, None) is returned.
+        Returns:
+            (Some(a), Some(b)) if self is Some((a, b)),
+            (Nothing, Nothing) otherwise.
         """
-        if self._is_some and isinstance(self._value, tuple) and len(self._value) > 1:
-            b = self._value[1:] if len(self._value) > 2 else self._value[1]
-            return (Some(value=self._value[0]), Some(value=b))
-        return (Nothing(), Nothing())
+        if self._is_some:
+            val = self._value
+            if isinstance(val, tuple) and len(val) == 2:
+                return Some(val[0]), Some(val[1])
+        return Nothing(), Nothing()
 
     def flatten(self) -> Option[T]:
-        """Converts from Option<Option<T>> to Option<T>."""
-        if isinstance(self._value, Some):
+        """Converts from Option[Option[T]] to Option[T]."""
+        if isinstance(self._value, Option):
             return self._value
+        # if isinstance(self._value, Some):
+        #    return self._value
         return self
 
     def __hash__(self):
@@ -182,11 +216,11 @@ class Option(Generic[T]):
         return not self == other
 
     def __and__(self, optb: Option[U]) -> Option[U]:
-        """Returns None if the option is None, otherwise returns optb."""
+        """Returns Nothing if this option is Nothing, otherwise returns optb."""
         return optb if self._is_some and optb._is_some else Nothing()
 
     def and_then(self, f: Callable[[T], U]) -> Option[U]:
-        """Returns None if the option is None, otherwise calls f with the wrapped value and returns the result."""
+        """Returns Nothing if this option is Nothing, otherwise calls f with the wrapped value and returns the result."""
         return Nothing() if self.is_none else maybe(value=f(self._value))
 
     def flatmap(self, f: Callable[[T], U]) -> Option[U]:
@@ -208,7 +242,7 @@ class Option(Generic[T]):
         return self if self._is_some else maybe(value=f())
 
     def __xor__(self, optb: Option[U]) -> Option[T | U]:
-        """Returns Some if exactly one of self, optb is Some, otherwise returns None."""
+        """Returns Some if exactly one of self, optb is Some, otherwise returns Nothing."""
         if self.is_none and optb.is_some:
             return optb
         if self.is_some and optb.is_none:
@@ -280,15 +314,31 @@ class Nothing(Option[Any]):
     Note: nothing is a classic singleton shared instance.
     """
 
+    __match_args__ = ()  # No fields to match on
+
     def __new__(cls) -> Nothing:
         if not hasattr(cls, "__singleton"):
             cls.__singleton = super().__new__(cls, is_some=False, value=None)
         return cls.__singleton
 
 
+# Factory functions
+def some(value: T) -> Option[T]:
+    return Some(value)
+
+
+def nothing() -> Option[None]:
+    return Nothing()
+
+
 def maybe[T](value: T | None) -> Option[T]:
     if is_nothing(value=value):
         return Nothing()
+    assert value is not None  # helper for type checking
+    return Some(value=value)
+
+
+def just[T](value: T) -> Option[T]:
     assert value is not None  # helper for type checking
     return Some(value=value)
 

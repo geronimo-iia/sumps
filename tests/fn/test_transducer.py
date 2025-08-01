@@ -57,20 +57,14 @@ def test_transduce():
 
     assert transduce(compose(filtering(is_prime), mapping(square), take(limit=2)), range(10)) == [4, 9]
 
-    assert transduce(
-        compose(filtering(is_prime), mapping(square), take(limit=2), repeating(num_times=2)), range(10)
-    ) == [4, 4, 9, 9]
+    assert transduce(compose(filtering(is_prime), mapping(square), take(limit=2), repeating(num_times=2)), range(10)) == [4, 4, 9, 9]
 
     assert transduce(compose(filtering(is_prime), mapping(square), enumerating(), nth(n=3)), range(10)) == [(2, 25)]
 
-    assert transduce(compose(filtering(is_prime), mapping(square), enumerating(), batching(size=2)), range(5)) == [
-        [(0, 4), (1, 9)]
-    ]
+    assert transduce(compose(filtering(is_prime), mapping(square), enumerating(), batching(size=2)), range(5)) == [[(0, 4), (1, 9)]]
 
 
 def test_transduce_expecting_single():
-    assert transduce(
-        compose(filtering(is_prime), mapping(square), enumerating(), nth(n=3), expecting_single()), range(10)
-    ) == [(2, 25)]
+    assert transduce(compose(filtering(is_prime), mapping(square), enumerating(), nth(n=3), expecting_single()), range(10)) == [(2, 25)]
     with pytest.raises(RuntimeError):
         transduce(compose(filtering(is_prime), mapping(square), enumerating(), expecting_single()), range(10))

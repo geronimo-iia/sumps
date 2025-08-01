@@ -43,9 +43,7 @@ def camel_case(name: str | None) -> str:
     result = re.sub(r"^[\-_\.]+", "", str(name))
     if not result:
         return result
-    return lower_case(result[0]) + re.sub(
-        r"[\-_\.\s]([a-zA-Z])", lambda matched: upper_case(matched.group(1)), result[1:]
-    )
+    return lower_case(result[0]) + re.sub(r"[\-_\.\s]([a-zA-Z])", lambda matched: upper_case(matched.group(1)), result[1:])
 
 
 def capital_case(name: str | None) -> str:

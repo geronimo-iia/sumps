@@ -142,3 +142,113 @@ def test_flatten():
 )
 def test_map(obj, func, expected):
     assert obj.map(func) == expected
+
+
+def test_and_then_flatmap_bind_equivalence():
+    def f(x):
+        return Some(x * 10)
+
+    some = Some(2)
+    nothing = Nothing()
+
+    assert some.and_then(f) == Some(20)
+    assert some.flatmap(f) == Some(20)
+    assert some.bind(f) == Some(20)
+
+    assert nothing.and_then(f) == Nothing()
+    assert nothing.flatmap(f) == Nothing()
+    assert nothing.bind(f) == Nothing()
+
+
+def test_or_else_and_or():
+    some = Some(5)
+    nothing = Nothing()
+
+    assert some | Some(10) == some
+    assert nothing | Some(10) == Some(10)
+    assert nothing | Nothing() == Nothing()
+
+    or_else_result = nothing.or_else(lambda: 42)
+    assert or_else_result == Some(42)
+
+    or_else_result_some = some.or_else(lambda: 42)
+    assert or_else_result_some == some
+
+
+def test_and_operator():
+    some1 = Some(1)
+    some2 = Some(2)
+    nothing = Nothing()
+
+    assert (some1 & some2) == some2
+    assert (some1 & nothing) == Nothing()
+    assert (nothing & some2) == Nothing()
+    assert (nothing & nothing) == Nothing()
+
+
+def test_xor_operator():
+    some1 = Some(1)
+    some2 = Some(2)
+    nothing = Nothing()
+
+    assert (some1 ^ some2) == Nothing()
+    assert (some1 ^ nothing) == some1
+    assert (nothing ^ some2) == some2
+    assert (nothing ^ nothing) == Nothing()
+
+
+def test_map_or_and_map_or_else():
+    some = Some(3)
+    nothing = Nothing()
+
+    assert some.map_or(lambda x: x * 2, 10) == 6
+    assert nothing.map_or(lambda x: x * 2, 10) == 10
+
+    assert some.map_or_else(lambda x: x * 3, lambda: 7) == 9
+    assert nothing.map_or_else(lambda x: x * 3, lambda: 7) == 7
+
+
+def test_filter_behavior():
+    some = Some(10)
+    nothing = Nothing()
+
+    assert some.filter(lambda x: x > 5) == some
+    assert some.filter(lambda x: x < 5) == Nothing()
+    assert nothing.filter(lambda x: True) == Nothing()
+
+
+def test_get_method_with_mapping():
+    some_map = Some({"a": 1, "b": 2})
+    nothing = Nothing()
+
+    assert some_map.get("a") == Some(1)
+    assert some_map.get("c") == Nothing()
+    assert some_map.get("c", default=5) == Some(5)
+    assert nothing.get("a") == Nothing()
+    assert nothing.get("a", default=5) == Some(5)
+
+
+def test_hash_and_repr_consistency():
+    s1 = Some(1)
+    s2 = Some(1)
+    n1 = Nothing()
+    n2 = Nothing()
+
+    assert hash(s1) == hash(s2)
+    assert hash(n1) == hash(n2)
+    assert repr(s1) == "Some(1)"
+    assert repr(n1) == "Nothing"
+
+
+def test_expect_message():
+    nothing = Nothing()
+    with raises(ValueError, match="custom error"):
+        nothing.expect("custom error")
+
+
+def test_unwrap_or_else():
+    some = Some(5)
+    nothing = Nothing()
+
+    assert some.unwrap_or_else(lambda: 10) == 5
+    assert nothing.unwrap_or_else(lambda: 10) == 10

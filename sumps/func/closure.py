@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from functools import wraps
 
-from curio.meta import iscoroutinefunction
+from sumps.aio import iscoroutinefunction
 
 __all__ = ["closure"]
 
@@ -51,7 +51,7 @@ def closure(decorated: Callable):
     ```
 
     Args:
-        decorated (Callable): a function (sync or async0 to transform in an builder of clojure.
+        decorated (Callable): a function (sync or async) to transform in an builder of clojure.
     """
     if not iscoroutinefunction(decorated):
 

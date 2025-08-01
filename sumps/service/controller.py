@@ -15,6 +15,8 @@ from .protocol import (
     Statuable,
 )
 
+__all__ = ["get_controller"]
+
 
 def get_controller(model) -> ServiceController | ServiceAsyncController:
     if isinstance(model, Startable):
@@ -33,6 +35,7 @@ class StateServiceController(Statuable):
         super().__init__()
         self._state = ServiceState.stopped
 
+    @property
     def status(self) -> ServiceState:
         return self._state
 

@@ -1,0 +1,3 @@
+# Stub file for dynamic context 'context_99382f4eae334d329ac9a8e75c7bd65b'
+
+def show(): ...

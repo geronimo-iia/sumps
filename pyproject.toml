@@ -48,11 +48,13 @@ serializer = [
 
 [dependency-groups]
 dev =  [
+    # we cant use "pytest-curio" (Pytest plugin for curio async testing) as we manage in our test unit specific kernel
     "ruff ~= 0.9",
     "pyright ~= 1.1.354",
     "pytest >= 8", # pytest: simple powerful testing with Python
     "pytest-cov >= 5", # Pytest plugin for measuring coverage.
-    "pytest-mock >=3",
+    "pytest-mock >=3",    
+    "pytest-forked", # Pytest plugin for running tests in forked processes
     "xdoctest ~=1.2.0", # A rewrite of the builtin doctest module
     "coverage[toml] >= 7.6.10",
     "poethepoet >= 0.32.1",
@@ -101,7 +103,7 @@ cache_dir = ".cache"
 
 [tool.ruff]
 cache-dir = ".cache/ruff"
-line-length = 120
+line-length = 140
 indent-width = 4
 target-version = "py312"
 exclude = [
@@ -119,8 +121,7 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
-    "study",
-    "dustbin"
+    "brainstorm",
 ]
 
 [tool.ruff.lint]
@@ -240,3 +241,8 @@ build-backend = "setuptools.build_meta"
 
 #[project.scripts]
 #sumps = "sumps:main"
+
+[tool.poe.tasks.sp]
+help = "SP testing"
+cmd = "uv run python -m sumps"
+capture_stdout = "requirements.txt"

@@ -7,50 +7,8 @@ See http://code.activestate.com/recipes/66531-singleton-we-dont-need-no-stinkin-
 Use case:
  You want do instantiate a class from anywhere in your program AND get access to the same data.
 
+Usage:
 
-Example:
-```
-@singleton
-class CounterDecorated:
-    def __init__(self):
-        self.count = 0
-
-    def inc(self):
-        self.count += 1
-
-
-a = CounterDecorated()
-a.inc()
-assert a.count == 1
-
-b = CounterDecorated()
-assert a.count == b.count == 1
-```
-
-"""
-
-__all__ = ["singleton"]
-
-
-def singleton(cls):
-    """singleton class decorator.
-
-    Original author: Max Egger.
-
-    Change:
-        - call original init only once.
-
-    Example:
-    ```
-    @singleton
-    class Foo(object):
-        def say_hello(self):
-            print "hello, I'm a borg"
-    ```
-
-    or
-
-    ```
     @singleton
     class CounterDecorated:
         def __init__(self):
@@ -58,17 +16,63 @@ def singleton(cls):
 
         def inc(self):
             self.count += 1
-    ```
+
+
+    a = CounterDecorated()
+    a.inc()
+    assert a.count == 1
+
+    b = CounterDecorated()
+    assert a.count == b.count == 1
+
+
+"""
+
+from typing import TypeVar
+
+T = TypeVar("T")
+
+
+__all__ = ["singleton"]
+
+
+def singleton(cls: type[T]) -> type[T]:
+    """Singleton class decorator using Borg/Monostate pattern.
+
+    All instances share the same state dictionary.
+
+    Original author: Max Egger.
+
+    Change:
+        - call original init only once.
+
+    Usage:
+
+        @singleton
+        class Foo(object):
+            def say_hello(self):
+                print "hello, I'm a borg"
+
+        @singleton
+        class CounterDecorated:
+            def __init__(self):
+                self.count = 0
+
+            def inc(self):
+                self.count += 1
+
 
     """
-    cls.__shared_state = {}
+    cls.__shared_state = {}  # type: ignore
 
     orig_init = cls.__init__
 
     def new_init(self, *args, **kwargs):
         nonlocal orig_init
-        self.__dict__ = cls.__shared_state
-        if orig_init:  # call only once
+        # Redirect instance __dict__ to shared state dict
+        self.__dict__ = cls.__shared_state  # type: ignore
+        # Call original __init__ only once
+        if orig_init is not None:
             orig_init(self, *args, **kwargs)
             orig_init = None
 

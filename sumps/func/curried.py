@@ -5,6 +5,8 @@ from functools import wraps
 from inspect import signature
 from typing import TypeVar, overload
 
+from sumps.aio import iscoroutinefunction
+
 __all__ = ["curried"]
 
 T1 = TypeVar("T1", contravariant=True)
@@ -63,7 +65,7 @@ def curried(
     raise Exception()
 
 
-def curried(func):  # type: ignore
+def curried(func: Callable):  # type: ignore
     args_len = len(signature(func).parameters)
 
     if args_len <= 1:
@@ -72,20 +74,40 @@ def curried(func):  # type: ignore
     if args_len > 7:
         raise RuntimeError("curried function with more than 7 parameters is not supported")
 
+    if not iscoroutinefunction(func):
+
+        @wraps(func)
+        def wrapper(*args, **keywords):
+            _args = args
+            _keywords = keywords
+
+            if len(_args) + len(_keywords) >= args_len:
+                return func(*_args, **_keywords)
+
+            def inner(*args, **keywords):
+                nonlocal _args, _keywords
+                local_args = _args + args
+                local_keywords = {**_keywords, **keywords}
+                return wrapper(*local_args, **local_keywords)
+
+            return inner
+
+        return wrapper
+
     @wraps(func)
-    def curried_function(*args, **keywords):
+    async def awrapper(*args, **keywords):
         _args = args
         _keywords = keywords
 
         if len(_args) + len(_keywords) >= args_len:
-            return func(*_args, **_keywords)
+            return await func(*_args, **_keywords)
 
-        def inner(*args, **keywords):
+        async def a_inner(*args, **keywords):
             nonlocal _args, _keywords
             local_args = _args + args
             local_keywords = {**_keywords, **keywords}
-            return curried_function(*local_args, **local_keywords)
+            return await awrapper(*local_args, **local_keywords)
 
-        return inner
+        return a_inner
 
-    return curried_function
+    return awrapper
