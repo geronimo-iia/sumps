@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .module_builder import ClassSymbol, ModuleBuilder
+from .module_builder import ModuleBuilder
+from .symbols import ClassSymbol
 
 __all__ = ["Intersection"]
 
