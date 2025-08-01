@@ -6,7 +6,8 @@ from inspect import Signature, signature
 from typing import Any
 
 from sumps.aio import ensure_async, iscoroutinefunction
-from sumps.lang.module_builder import FunctionSymbol, ModuleBuilder
+from sumps.lang.module_builder import ModuleBuilder
+from sumps.lang.symbols import FunctionSymbol
 
 from .identity import identity
 
