@@ -12,7 +12,7 @@ msgspec==0.20.0
     # via sumps (pyproject.toml)
 six==1.17.0
     # via transitions
-smmap==5.0.2
+smmap==5.0.3
     # via gitdb
 transitions==0.9.3
     # via sumps (pyproject.toml)
