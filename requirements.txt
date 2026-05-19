@@ -6,9 +6,9 @@ dill==0.4.1
     # via sumps (pyproject.toml)
 gitdb==4.0.12
     # via gitpython
-gitpython==3.1.46
+gitpython==3.1.47
     # via sumps (pyproject.toml)
-msgspec==0.20.0
+msgspec==0.21.1
     # via sumps (pyproject.toml)
 six==1.17.0
     # via transitions
