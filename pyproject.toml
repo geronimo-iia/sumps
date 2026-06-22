@@ -42,7 +42,7 @@ serializer = [
     "networkx ~= 3.5",
     "pydantic >=2.12,<2.14",
     "orjson ~= 3.11.1",
-    "protobuf ~=7.34.0",
+    "protobuf >=7.34,<7.36",
     "brotlipy ~= 0.7.0"
 ]
 
