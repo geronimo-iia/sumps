@@ -40,9 +40,9 @@ repository = "https://github.com/geronimo-iia/sumps"
 [project.optional-dependencies]
 serializer = [
     "networkx ~= 3.5",
-    "pydantic >=2.12,<2.14",
-    "orjson >= 3.11.1,< 3.13.0",
-    "protobuf >=7.34,<7.36",
+    "pydantic >=2.12,<2.15",
+    "orjson >= 3.11.1,< 3.14.0",
+    "protobuf >=7.34,<7.37",
     "brotlipy ~= 0.7.0"
 ]
 
@@ -63,7 +63,7 @@ docs = [
     "mkdocs-include-markdown-plugin >= 7.2,< 7.4",
     "mkdocstrings[python] ~= 1.0",
     "mkdocs-material == 9.*",
-    "mkdocs-include-markdown-plugin ~= 7.2.0"
+    "mkdocs-include-markdown-plugin >= 7.2,< 7.4"
 ]
 
 [tool.setuptools]
